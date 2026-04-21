@@ -4,6 +4,7 @@ import Login from "./components/Login";
 import Upload from "./components/Upload";
 import Premium from "./components/Premium";
 import Main from "./components/Main";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -11,9 +12,30 @@ function App() {
       <Routes>
         <Route path="/" element={<Signup />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/Main" element={<Main />} />
-        <Route path="/upload" element={<Upload />} />
-        <Route path="/premium" element={<Premium />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Main />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <Upload />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/premium"
+          element={
+            <ProtectedRoute>
+              <Premium />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

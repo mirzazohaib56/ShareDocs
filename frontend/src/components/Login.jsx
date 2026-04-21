@@ -10,15 +10,17 @@ export default function Login() {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.email.includes("@")) {
@@ -31,8 +33,36 @@ export default function Login() {
       return;
     }
 
+    setLoading(true);
     setError("");
-    navigate("/main");
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.msg || "Something went wrong");
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      navigate("/dashboard");
+
+    } catch (err) {
+      setError("Cannot connect to server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,8 +91,8 @@ export default function Login() {
             style={styles.input}
           />
 
-          <button type="submit" style={styles.button}>
-            Login
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
@@ -87,8 +117,6 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-
-    // 🔐 Login related background
     backgroundImage: `
       linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
       url('https://images.pexels.com/photos/5380642/pexels-photo-5380642.jpeg')
@@ -97,20 +125,15 @@ const styles = {
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
   },
-
   container: {
     width: "100%",
     maxWidth: "420px",
     padding: "30px",
     borderRadius: "12px",
-
-    // 🔥 glass effect
     background: "rgba(255, 255, 255, 0.9)",
     backdropFilter: "blur(10px)",
-
     boxShadow: "0 0 25px rgba(0,0,0,0.3)",
   },
-
   title: {
     textAlign: "center",
     marginBottom: "20px",
@@ -119,13 +142,11 @@ const styles = {
     fontWeight: "bold",
     color: "#000",
   },
-
   form: {
     display: "flex",
     flexDirection: "column",
     gap: "15px",
   },
-
   input: {
     padding: "12px",
     fontSize: "16px",
@@ -133,7 +154,6 @@ const styles = {
     border: "1px solid #ccc",
     outline: "none",
   },
-
   button: {
     padding: "14px",
     backgroundColor: "#000",
@@ -144,21 +164,18 @@ const styles = {
     cursor: "pointer",
     transition: "0.3s",
   },
-
   error: {
     color: "red",
     fontSize: "14px",
     marginBottom: "10px",
     textAlign: "center",
   },
-
   signupText: {
     textAlign: "center",
     marginTop: "15px",
     fontSize: "14px",
     color: "#000",
   },
-
   linkButton: {
     marginLeft: "6px",
     color: "#007bff",

@@ -40,3 +40,42 @@
 .read-the-docs {
   color: #888;
 }
+
+.navbar-search {
+  display: flex;
+  flex: 1;
+  max-width: 400px;
+  margin: 0 20px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.navbar-right {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.navbar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .navbar-search {
+    display: none;
+  }
+
+  .navbar-right {
+    display: none;
+  }
+
+  .navbar-hamburger {
+    display: block;
+  }
+}

@@ -7,9 +7,8 @@ import connectDB from './utils/connectDb.js';
 
 dotenv.config();
 
-console.log(process.env.MONGO_DB_URL)
 const app = express();
-
+app.use(express.json());
 
 app.use(cors({
     origin: '*'
@@ -19,8 +18,6 @@ app.use('/auth', authRoutes)
 
 const startServer = async () => {
   try {
-    console.log("DB URL:", process.env.MONGO_DB_URL);
-
     await connectDB();
 
     const PORT = process.env.PORT || 5000;

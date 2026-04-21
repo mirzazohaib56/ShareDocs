@@ -15,16 +15,19 @@ export default function Signup() {
     password: "",
   });
 
+  const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-
     setErrors({
       ...errors,
       [e.target.name]: "",
     });
+    setServerError("");
   };
 
   const validate = () => {
@@ -46,18 +49,42 @@ export default function Signup() {
     return isValid;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    console.log("Signup Data:", formData);
+    setLoading(true);
+    setServerError("");
 
-    // 👉 CLEAR INPUT FIELDS AFTER SUCCESS SUBMIT
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-    });
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/auth/signup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setServerError(data.msg || "Something went wrong");
+        return;
+      }
+
+      // Save token to localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setFormData({ name: "", email: "", password: "" });
+      navigate("/dashboard"); // change to your route
+
+    } catch (err) {
+      setServerError("Cannot connect to server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -98,8 +125,10 @@ export default function Signup() {
           />
           {errors.password && <p style={styles.error}>{errors.password}</p>}
 
-          <button type="submit" style={styles.button}>
-            Sign Up
+          {serverError && <p style={styles.error}>{serverError}</p>}
+
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? "Signing Up..." : "Sign Up"}
           </button>
         </form>
 
@@ -116,7 +145,7 @@ export default function Signup() {
 
 const styles = {
   wrapper: {
-    position: "fixed",          // 🔥 force full screen always
+    position: "fixed",
     top: 0,
     left: 0,
     width: "100vw",
@@ -124,53 +153,42 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-
-    // ✅ Background Image
     backgroundImage: "url('https://images.pexels.com/photos/1181354/pexels-photo-1181354.jpeg')",
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
   },
-
-  // optional overlay for better readability
   container: {
     width: "100%",
     maxWidth: "420px",
     padding: "30px",
     borderRadius: "12px",
-
-    background: "rgba(255,255,255,0.9)", // 🔥 glass effect
+    background: "rgba(255,255,255,0.9)",
     backdropFilter: "blur(8px)",
-
     boxShadow: "0 0 20px rgba(0,0,0,0.2)",
   },
-
   title: {
     textAlign: "center",
     marginBottom: "20px",
     fontFamily: "Arial",
     fontSize: "24px",
   },
-
   form: {
     display: "flex",
     flexDirection: "column",
     gap: "15px",
   },
-
   input: {
     padding: "12px",
     fontSize: "16px",
     borderRadius: "6px",
     border: "1px solid #aaa",
   },
-
   error: {
     color: "red",
     fontSize: "13px",
     marginTop: "-10px",
   },
-
   button: {
     padding: "14px",
     backgroundColor: "black",
@@ -179,14 +197,13 @@ const styles = {
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
+    opacity: 1,
   },
-
   loginText: {
     textAlign: "center",
     marginTop: "15px",
     fontSize: "14px",
   },
-
   linkButton: {
     marginLeft: "6px",
     color: "blue",

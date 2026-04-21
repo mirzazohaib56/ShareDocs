@@ -1,6 +1,12 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../schema/user.schema.js";
+import Joi from "joi";
+
+const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required(),
+});
 
 // Generate Token
 const generateToken = (id) => {
@@ -83,4 +89,8 @@ export const login = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+export const logout = (req, res) => {
+  res.json({ msg: "Logged out successfully" });
 };
