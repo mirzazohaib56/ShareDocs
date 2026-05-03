@@ -5,6 +5,7 @@ import Upload from "./components/Upload";
 import Premium from "./components/Premium";
 import Main from "./components/Main";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DownloadPage from "./components/DownloadPage";
 
 function App() {
   return (
@@ -36,6 +37,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/download/:fileId" element={
+          <ProtectedRoute><DownloadPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

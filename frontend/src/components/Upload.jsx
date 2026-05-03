@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Upload, File, CheckCircle, XCircle, Loader, AlertCircle } from "lucide-react";
 
-// ─── Styled Components (original design preserved) ───────────────────────────
+// ─── Styled Components ────────────────────────────────────────────────────────
 
 const PageContainer = ({ children }) => (
   <div style={{
@@ -117,6 +118,16 @@ const ProgressBar = ({ children }) => (
 
 const MAX_FILES = 3;
 
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+
 const formatFileSize = (bytes) => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -134,29 +145,8 @@ const STATUS_STYLE = {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-/**
- * Point this to your Express route.
- *
- * Expected Express handler (multer + cloudinary):
- *
- *   const multer     = require("multer");
- *   const cloudinary = require("cloudinary").v2;
- *   const upload     = multer({ storage: multer.memoryStorage() });
- *
- *   app.post("/api/upload", upload.single("file"), async (req, res) => {
- *     const result = await new Promise((resolve, reject) => {
- *       const stream = cloudinary.uploader.upload_stream(
- *         { resource_type: "raw", folder: "pdfs" },
- *         (err, result) => err ? reject(err) : resolve(result)
- *       );
- *       stream.end(req.file.buffer);
- *     });
- *     res.json({ url: result.secure_url });
- *   });
- *
- * Response shape expected: { url: "https://res.cloudinary.com/..." }
- */
-const UPLOAD_ENDPOINT =  `${import.meta.env.VITE_BACKEND_URL}/api/upload`; // ← change to your Express route
+const API_BASE        = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+const UPLOAD_ENDPOINT = `${API_BASE}/api/files/upload`;
 
 const uploadFileToBackend = async (file) => {
   const formData = new FormData();
@@ -269,45 +259,32 @@ const FileItem = ({ file, status, cloudinaryUrl, errorMsg, onRemove, disabled })
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PDFUpload() {
-  const [files, setFiles]             = useState([]);
-  const [isDragging, setIsDragging]   = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const targetDoc  = location.state?.doc; // set when user came from Main via "Upload to Unlock"
+
+  const [files, setFiles]               = useState([]);
+  const [isDragging, setIsDragging]     = useState(false);
+  const [isUploading, setIsUploading]   = useState(false);
   const [limitWarning, setLimitWarning] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const inputRef = useRef(null);
 
+  // ── Add files ──────────────────────────────────────────────────────────────
   const addFiles = (incoming) => {
-    const ALLOWED_TYPES = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-powerpoint",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ];
-
-    const files = Array.from(incoming).filter(f =>
-  ALLOWED_TYPES.includes(f.type) || f.type.startsWith("image/")
-);
-    if (!files.length) return;
+    const valid = Array.from(incoming).filter(
+      f => ALLOWED_TYPES.includes(f.type) || f.type.startsWith("image/")
+    );
+    if (!valid.length) return;
 
     setFiles(prev => {
       const existing = new Set(prev.map(e => e.file.name));
-      const fresh = files.filter(f => !existing.has(f.name));
+      const fresh    = valid.filter(f => !existing.has(f.name));
+      const slots    = MAX_FILES - prev.length;
 
-      // How many slots are left?
-      const slots = MAX_FILES - prev.length;
-
-      if (slots <= 0) {
-        setLimitWarning(true);
-        return prev; // already at max, reject all
-      }
-
-      if (fresh.length > slots) {
-        setLimitWarning(true); // tried to add too many
-      } else {
-        setLimitWarning(false);
-      }
+      if (slots <= 0) { setLimitWarning(true); return prev; }
+      if (fresh.length > slots) setLimitWarning(true);
+      else setLimitWarning(false);
 
       return [
         ...prev,
@@ -325,6 +302,7 @@ export default function PDFUpload() {
     setLimitWarning(false);
   };
 
+  // ── Upload all pending files ───────────────────────────────────────────────
   const handleUploadAll = async () => {
     const pending = files.filter(e => e.status === "idle" || e.status === "error");
     if (!pending.length) return;
@@ -359,11 +337,47 @@ export default function PDFUpload() {
     setIsUploading(false);
   };
 
+  // ── When all 3 done → request download token → redirect ───────────────────
+  useEffect(() => {
+    if (!allDone) return;
+    if (!targetDoc) return; // user uploaded without a target doc, do nothing
+
+    const requestToken = async () => {
+      setIsRedirecting(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/files/download-token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ fileId: targetDoc._id }),
+        });
+
+        const data = await res.json();
+        console.log("token response:", data); // 👈 add this
+    console.log("targetDoc:", targetDoc); // 👈 add this
+        if (!data.downloadToken) throw new Error("No token received");
+
+        navigate(`/download/${targetDoc._id}`, {
+          state: { doc: targetDoc, downloadToken: data.downloadToken },
+        });
+      } catch (err) {
+        setIsRedirecting(false);
+        alert("Uploads successful but could not unlock download. Please try again.");
+      }
+    };
+
+    // 1s delay so user sees the "All uploaded!" state before redirect
+    const timer = setTimeout(requestToken, 1000);
+    return () => clearTimeout(timer);
+  }, [files]); // runs whenever files state changes
+
   const handleDragOver  = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop      = (e) => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files); };
 
-  // Derived
+  // ── Derived ────────────────────────────────────────────────────────────────
   const totalFiles      = files.length;
   const uploadableCount = files.filter(e => e.status === "idle" || e.status === "error").length;
   const uploadingCount  = files.filter(e => e.status === "uploading").length;
@@ -371,10 +385,9 @@ export default function PDFUpload() {
   const allDone         = totalFiles === MAX_FILES && successCount === MAX_FILES;
   const hasErrors       = !isUploading && files.some(e => e.status === "error");
   const atMax           = totalFiles >= MAX_FILES;
-
-  // Upload button is enabled only when exactly 3 files are selected and there are pending files
   const canUpload       = totalFiles === MAX_FILES && uploadableCount > 0 && !isUploading;
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <PageContainer>
       <Card>
@@ -382,8 +395,13 @@ export default function PDFUpload() {
           <IconCircle background="#e3f2fd">
             <Upload size={40} color="#667eea" />
           </IconCircle>
-          <Title>Upload PDF Files</Title>
-          <Subtitle>Select exactly 3 PDF files to upload</Subtitle>
+          <Title>Upload Files</Title>
+          <Subtitle>
+            {targetDoc
+              ? <>Uploading to unlock: <strong>{targetDoc.title}</strong></>
+              : "Select exactly 3 files to upload"
+            }
+          </Subtitle>
         </Header>
 
         {/* Drop Zone — hidden once 3 files are selected */}
@@ -413,7 +431,7 @@ export default function PDFUpload() {
                 Choose files or drag them here
               </p>
               <p style={{ fontSize: "14px", color: "#718096", margin: "0" }}>
-                PDF files only · {MAX_FILES - totalFiles} slot{MAX_FILES - totalFiles !== 1 ? "s" : ""} remaining
+                PDF, DOC, XLS, PPT, Images · {MAX_FILES - totalFiles} slot{MAX_FILES - totalFiles !== 1 ? "s" : ""} remaining
               </p>
             </label>
           </UploadArea>
@@ -460,7 +478,12 @@ export default function PDFUpload() {
             </span>
           </div>
 
-          {allDone ? (
+          {isRedirecting ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#667eea" }}>
+              <Loader size={18} style={{ animation: "spin 1s linear infinite" }} />
+              <span style={{ fontSize: "14px", fontWeight: "700" }}>Unlocking…</span>
+            </div>
+          ) : allDone ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#10b981" }}>
               <CheckCircle size={20} />
               <span style={{ fontSize: "14px", fontWeight: "700" }}>All uploaded!</span>
@@ -482,10 +505,10 @@ export default function PDFUpload() {
               </span>
               <button
                 onClick={() => { setFiles([]); setLimitWarning(false); }}
-                disabled={isUploading}
+                disabled={isUploading || isRedirecting}
                 style={{
                   background: "none", border: "none", color: "#a0aec0",
-                  fontSize: "12px", cursor: isUploading ? "not-allowed" : "pointer",
+                  fontSize: "12px", cursor: (isUploading || isRedirecting) ? "not-allowed" : "pointer",
                   textDecoration: "underline"
                 }}
               >
@@ -501,7 +524,7 @@ export default function PDFUpload() {
                 cloudinaryUrl={entry.cloudinaryUrl}
                 errorMsg={entry.errorMsg}
                 onRemove={() => removeFile(index)}
-                disabled={isUploading}
+                disabled={isUploading || isRedirecting}
               />
             ))}
 
@@ -534,32 +557,37 @@ export default function PDFUpload() {
           </div>
         )}
 
-        {/* Upload Button — only active when exactly 3 files selected */}
+        {/* Upload Button */}
         <button
           onClick={handleUploadAll}
-          disabled={!canUpload}
+          disabled={!canUpload || isRedirecting}
           style={{
             marginTop: "30px",
             width: "100%",
             padding: "16px",
-            background: canUpload
+            background: (canUpload && !isRedirecting)
               ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
               : "#e2e8f0",
-            color: canUpload ? "#fff" : "#a0aec0",
+            color: (canUpload && !isRedirecting) ? "#fff" : "#a0aec0",
             border: "none",
             borderRadius: "12px",
             fontSize: "16px",
             fontWeight: "700",
-            cursor: canUpload ? "pointer" : "not-allowed",
+            cursor: (canUpload && !isRedirecting) ? "pointer" : "not-allowed",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "10px",
-            boxShadow: canUpload ? "0 8px 24px rgba(102,126,234,0.4)" : "none",
+            boxShadow: (canUpload && !isRedirecting) ? "0 8px 24px rgba(102,126,234,0.4)" : "none",
             transition: "all 0.3s ease"
           }}
         >
-          {isUploading ? (
+          {isRedirecting ? (
+            <>
+              <Loader size={20} style={{ animation: "spin 1s linear infinite" }} />
+              Unlocking your download…
+            </>
+          ) : isUploading ? (
             <>
               <Loader size={20} style={{ animation: "spin 1s linear infinite" }} />
               Uploading {uploadingCount} file{uploadingCount !== 1 ? "s" : ""}…
