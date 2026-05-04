@@ -34,7 +34,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+
 // ✅ 3. Then routes
+app.get("/", (req, res) => {
+  res.json({ status: "ok", message: "Server is running 🚀" });
+});
 app.use('/auth', authRoutes);
 app.use('/api/files', uploadRoutes);
 app.use('/api/stripe', stripeRoutes);
