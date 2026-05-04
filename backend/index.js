@@ -42,7 +42,7 @@ app.use('/auth', authRoutes);
 app.use('/api/files', uploadRoutes);
 app.use('/api/stripe', stripeRoutes);
 
-connectDB();
+connectDB().catch(err => console.error("DB failed:", err.message));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
