@@ -1,17 +1,32 @@
 import dotenv from 'dotenv'
-dotenv.config(); // ← runs first before anything else
+dotenv.config();
 
 import express from 'express'
 import cors from 'cors'
 import authRoutes from './routes/auth.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
+import stripeRoutes from './routes/stripe.routes.js'; // ← static import
 import connectDB from './utils/connectDb.js';
 import cloudinary from "cloudinary";
 
 const app = express();
-app.use(express.json());
 
-app.use(cors({ origin: '*' }))
+// ✅ 1. CORS first — before everything
+const corsOptions = {
+  origin: [
+    "https://share-docs-flax.vercel.app",
+    "http://localhost:5173",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // ✅ handle preflight
+
+// ✅ 2. Then body parser
+app.use(express.json());
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -19,26 +34,16 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-app.use('/auth', authRoutes)
-app.use('/api/files', uploadRoutes)
+// ✅ 3. Then routes
+app.use('/auth', authRoutes);
+app.use('/api/files', uploadRoutes);
+app.use('/api/stripe', stripeRoutes);
 
-const startServer = async () => {
-  try {
-    await connectDB();
+connectDB();
 
-    // ← dynamic import AFTER dotenv has run
-    const { default: stripeRoutes } = await import("./routes/stripe.routes.js");
-    app.use("/api/stripe", stripeRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 App is running on port ${PORT}`);
+});
 
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`🚀 App is running on port ${PORT}`);
-    });
-
-  } catch (error) {
-    console.error("Server failed to start:", error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+export default app; // ✅ required for Vercel serverless
