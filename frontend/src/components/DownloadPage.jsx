@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef  } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle, Download, Loader, ArrowLeft, Lock } from "lucide-react";
 
@@ -44,14 +44,30 @@ const getFileEmoji = (mimeType) => {
   return "📁";
 };
 
-const triggerDownload = (url, filename) => {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename || "download";
-  a.target = "_blank"; // Cloudinary raw files may need this
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+const triggerDownload = async (url, filename) => {
+  try {
+    // Fetch as blob to force download instead of opening in new tab
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch {
+    // Fallback if blob fetch fails (e.g. CORS)
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -65,6 +81,7 @@ export default function DownloadPage() {
   const [doc, setDoc] = useState(location.state?.doc || null);
   const [status, setStatus] = useState("loading"); // loading | ready | downloading | done | error | premium
   const [error, setError] = useState("");
+  const downloadTriggered = useRef(false);
 
   // ── 1. Resolve the doc (from state or fetch from API) ──────────────────────
   useEffect(() => {
@@ -151,20 +168,21 @@ export default function DownloadPage() {
     }
   };
   // ── 3. Trigger the actual download ─────────────────────────────────────────
-  const startDownload = (resolvedDoc) => {
+  const startDownload = async (resolvedDoc) => {
+    if (downloadTriggered.current) return; // ← guard
+    downloadTriggered.current = true;
+  
     setStatus("downloading");
     const fileUrl = resolvedDoc.url;
     const filename = resolvedDoc.title || "download";
-
+  
     if (!fileUrl) {
       setError("No file URL available.");
       setStatus("error");
       return;
     }
-
-    triggerDownload(fileUrl, filename);
-
-    // Small delay then mark done
+  
+    await triggerDownload(fileUrl, filename);
     setTimeout(() => setStatus("done"), 1500);
   };
 
@@ -200,11 +218,8 @@ export default function DownloadPage() {
               Direct access to this page is not allowed.
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap", justifyContent: "center" }}>
-              <button onClick={() => navigate("/")} style={styles.btnPrimary}>
-                Upload Files to Unlock
-              </button>
-              <button onClick={() => navigate("/premium")} style={styles.btnSecondary}>
-                ⭐ Go Premium
+              <button onClick={() => navigate("/dashboard")} style={styles.btnPrimary}>
+                Go to Dashboard
               </button>
             </div>
           </div>
@@ -250,7 +265,7 @@ export default function DownloadPage() {
               <button onClick={handleRetry} style={styles.btnPrimary}>
                 <Download size={16} /> Download Again
               </button>
-              <button onClick={() => navigate("/")} style={styles.btnSecondary}>
+              <button onClick={() => navigate("/dashboard")} style={styles.btnSecondary}>
                 Browse More
               </button>
             </div>
@@ -265,7 +280,7 @@ export default function DownloadPage() {
             </div>
             <h2 style={styles.title}>Something went wrong</h2>
             <p style={styles.subtitle}>{error || "Could not load the file."}</p>
-            <button onClick={() => navigate("/")} style={styles.btnSecondary}>
+            <button onClick={() => navigate("/dashboard")} style={styles.btnSecondary}>
               Go Back Home
             </button>
           </div>
