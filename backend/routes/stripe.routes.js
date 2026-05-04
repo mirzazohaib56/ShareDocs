@@ -1,12 +1,13 @@
-import express from "express";
-import Stripe from "stripe";
 import jwt from "jsonwebtoken";
+import Stripe from "stripe";
 import { Router } from "express";
 
 const router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const DOWNLOAD_PRICE_CENTS = 199; // $1.99 — change this to whatever you want
+const DOWNLOAD_PRICE_CENTS = 199;
+
+// ✅ Lazy init — only called when a route is hit, dotenv has run by then
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,14 +22,12 @@ const authenticate = (req, res, next) => {
   });
 };
 
-// ── POST /api/stripe/create-session ──────────────────────────────────────────
-// Frontend calls this when user clicks "Go Premium" on a specific file
 router.post("/create-session", authenticate, async (req, res) => {
   const { fileId, fileTitle, successUrl, cancelUrl } = req.body;
-
   if (!fileId) return res.status(400).json({ message: "fileId required" });
 
   try {
+    const stripe = getStripe(); // ✅ here
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -45,13 +44,9 @@ router.post("/create-session", authenticate, async (req, res) => {
           quantity: 1,
         },
       ],
-      // Stripe replaces {CHECKOUT_SESSION_ID} automatically
       success_url: successUrl || `${process.env.FRONTEND_URL}/download/${fileId}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  cancelUrl  || `${process.env.FRONTEND_URL}/dashboard`,
-      metadata: {
-        fileId,
-        userId: req.user.id,
-      },
+      cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/dashboard`,
+      metadata: { fileId, userId: req.user.id },
     });
 
     res.json({ url: session.url });
@@ -60,27 +55,21 @@ router.post("/create-session", authenticate, async (req, res) => {
   }
 });
 
-// ── GET /api/stripe/verify-session ───────────────────────────────────────────
-// DownloadPage calls this to verify payment before triggering download
 router.get("/verify-session", authenticate, async (req, res) => {
   const { session_id } = req.query;
   if (!session_id) return res.status(400).json({ valid: false });
 
   try {
+    const stripe = getStripe(); // ✅ here
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
-    // Must be paid
     if (session.payment_status !== "paid")
       return res.json({ valid: false, reason: "not_paid" });
 
-    // Must belong to this user
     if (session.metadata.userId !== req.user.id)
       return res.json({ valid: false, reason: "user_mismatch" });
 
-    res.json({
-      valid:  true,
-      fileId: session.metadata.fileId,
-    });
+    res.json({ valid: true, fileId: session.metadata.fileId });
   } catch (err) {
     res.status(500).json({ valid: false, reason: err.message });
   }
