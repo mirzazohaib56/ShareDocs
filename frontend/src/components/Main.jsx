@@ -279,9 +279,6 @@ export default function MainPage() {
               <p className="text-white-50 fs-5 mb-4" style={{ maxWidth: 520 }}>
                 Specialized knowledge on any topic. Study material, notes, guides, and more — all in one place.
               </p>
-              <div className="d-flex gap-3 flex-wrap">
-                <button className="btn btn-success btn-lg px-4" onClick={() => navigate("/upload")}>Upload & Share</button>
-              </div>
             </div>
             <div className="col-lg-5 mt-5 mt-lg-0">
               <div className="row g-3">
