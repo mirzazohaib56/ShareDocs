@@ -113,24 +113,6 @@ export default function Navbar({ onSearch }) {
             </button>
           </div>
 
-          {/* Mobile Language */}
-          <p className="text-secondary mb-1" style={{ fontSize: 13 }}>
-            🌐 Language
-          </p>
-          {["English", "Spanish", "French", "German", "Urdu"].map((lang) => (
-            <div key={lang} className="form-check">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="mobileLang"
-                value={lang}
-                checked={selectedLang === lang}
-                onChange={() => setSelectedLang(lang)}
-              />
-              <label className="form-check-label text-white">{lang}</label>
-            </div>
-          ))}
-
           <hr style={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
           {/* Mobile User */}

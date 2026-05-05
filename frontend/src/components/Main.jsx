@@ -281,7 +281,6 @@ export default function MainPage() {
               </p>
               <div className="d-flex gap-3 flex-wrap">
                 <button className="btn btn-success btn-lg px-4" onClick={() => navigate("/upload")}>Upload & Share</button>
-                <button className="btn btn-outline-light btn-lg px-4" onClick={() => navigate("/premium")}>Go Premium</button>
               </div>
             </div>
             <div className="col-lg-5 mt-5 mt-lg-0">
