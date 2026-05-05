@@ -32,6 +32,25 @@ export default function Navbar({ onSearch }) {
           Search
         </button>
       </div>
+
+      {/* Desktop Right */}
+      <div className="d-none d-md-flex align-items-center gap-3">
+        {/* Username */}
+        {user && (
+          <span className="text-white fw-bold">
+            👤 {user.name}
+          </span>
+        )}
+
+        {/* Logout */}
+        <button
+          className="btn btn-danger btn-sm"
+          onClick={() => handleLogout(navigate)}
+        >
+          Logout
+        </button>
+      </div>
+
       {/* Hamburger — mobile only */}
       <button
         className="navbar-toggler d-md-none"
