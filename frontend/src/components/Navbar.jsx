@@ -7,7 +7,6 @@ export default function Navbar({ onSearch }) {
   const user = JSON.parse(localStorage.getItem("user"));
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [selectedLang, setSelectedLang] = useState("English");
 
   return (
     <nav className="navbar navbar-dark px-3 px-md-4 py-2" style={styles.nav}>
@@ -33,47 +32,6 @@ export default function Navbar({ onSearch }) {
           Search
         </button>
       </div>
-
-      {/* Desktop Right */}
-      <div className="d-none d-md-flex align-items-center gap-3">
-        {/* Language Dropdown */}
-        <div className="dropdown">
-          <button
-            className="btn btn-outline-light btn-sm dropdown-toggle"
-            data-bs-toggle="dropdown"
-          >
-            🌐 {selectedLang}
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end">
-            {["English", "Spanish", "French", "German", "Urdu"].map((lang) => (
-              <li key={lang}>
-                <button
-                  className="dropdown-item"
-                  onClick={() => setSelectedLang(lang)}
-                >
-                  {lang}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Username */}
-        {user && (
-          <span className="text-white fw-bold">
-            👤 {user.name}
-          </span>
-        )}
-
-        {/* Logout */}
-        <button
-          className="btn btn-danger btn-sm"
-          onClick={() => handleLogout(navigate)}
-        >
-          Logout
-        </button>
-      </div>
-
       {/* Hamburger — mobile only */}
       <button
         className="navbar-toggler d-md-none"
