@@ -5,6 +5,8 @@ import { Router } from "express";
 import jwt        from "jsonwebtoken";
 import File       from "../schema/file.schema.js";
 import Stripe from "stripe";
+import { extractText } from "../utils/extractText.js";
+import { generateTagsAndDescription } from "../utils/aiTagger.js";
 
 const { v2: cloudinaryV2 } = cloudinary;
 const router = Router();
@@ -18,6 +20,11 @@ const ALLOWED_MIMETYPES = [
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
+
+const getResourceType = (mimetype) => {
+  if (mimetype.startsWith("image/")) return "image";
+  return "raw"; // ← all documents should be raw
+};
 
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -57,7 +64,7 @@ router.post("/upload", authenticate, upload.single("file"), async (req, res) => 
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinaryV2.uploader.upload_stream(
         {
-          resource_type: "auto",
+          resource_type: getResourceType(req.file.mimetype), // ← fix here
           folder: "uploads",
           public_id: `${Date.now()}-${req.file.originalname.replace(/\s+/g, "_")}`,
         },
@@ -66,19 +73,27 @@ router.post("/upload", authenticate, upload.single("file"), async (req, res) => 
       stream.end(req.file.buffer);
     });
 
-    // 2. Save entry to MongoDB
+    // 2. Extract text and generate AI tags
+    const text = await extractText(req.file.buffer, req.file.mimetype);
+    const { description, tags, title } = await generateTagsAndDescription(
+      text,
+      req.file.buffer,
+      req.file.mimetype,
+      req.file.originalname
+    );
+
+    // 3. Save to MongoDB with AI-generated values
     const fileEntry = await File.create({
-      title:       req.file.originalname,   // dummy: using original filename
-      description: "No description",        // dummy
-      tags:        ["untagged"],             // dummy
+      title,
+      description, // ← AI generated
+      tags,        // ← AI generated
       url:         result.secure_url,
       publicId:    result.public_id,
       fileType:    req.file.mimetype,
       size:        req.file.size,
-      uploadedBy:  req.user.id,            // from JWT decoded payload
+      uploadedBy:  req.user.id,
     });
 
-    // 3. Respond with both
     res.status(201).json({
       url:  result.secure_url,
       file: fileEntry,
@@ -88,6 +103,56 @@ router.post("/upload", authenticate, upload.single("file"), async (req, res) => 
   }
 });
 
+// router.post("/upload", authenticate, upload.single("file"), async (req, res) => {
+//   try {
+//     console.log("GROQ KEY IN ROUTE:", process.env.GROQ_API_KEY);
+//     // 1. Extract text
+//     const text = await extractText(req.file.buffer, req.file.mimetype);
+//     console.log("Extracted text:", text?.slice(0, 200));
+
+//     // 2. AI tagging
+//     const { description, tags } = await generateTagsAndDescription(
+//       text,
+//       req.file.buffer,
+//       req.file.mimetype
+//     );
+
+//     console.log("Description:", description);
+//     console.log("Tags:", tags);
+
+//     // 3. Return result without saving anything
+//     res.status(200).json({ description, tags });
+
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+router.get("/proxy-download/:fileId", authenticate, async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) return res.status(404).json({ message: "File not found" });
+
+    console.log("Fetching URL:", file.url);
+    console.log("publicId:", file.publicId);
+    console.log("fileType:", file.fileType);
+
+    // Just fetch the stored URL directly — no signing needed if public
+    const response = await fetch(file.url);
+    console.log("Response status:", response.status);
+    
+    if (!response.ok) throw new Error(`Failed: ${response.status}`);
+
+    const buffer = await response.arrayBuffer();
+    res.setHeader("Content-Disposition", `attachment; filename="${file.title}"`);
+    res.setHeader("Content-Type", file.fileType || "application/octet-stream");
+    res.setHeader("Content-Length", buffer.byteLength);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error("Proxy download error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
 // ── POST /api/files/download-token ────────────────────────────────────────────
 // Called after 3 files uploaded successfully → issues a 5-min download token
 router.post("/download-token", authenticate, async (req, res) => {
@@ -164,5 +229,6 @@ router.get("/:fileId", authenticate, async (req, res) => {
     res.status(403).json({ message: "Access denied" });
   }
 });
+
 
 export default router;

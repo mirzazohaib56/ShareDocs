@@ -44,10 +44,14 @@ const getFileEmoji = (mimeType) => {
   return "📁";
 };
 
-const triggerDownload = async (url, filename) => {
+const triggerDownload = async (url, filename, fileId) => {
   try {
-    // Fetch as blob to force download instead of opening in new tab
-    const response = await fetch(url);
+    const response = await fetch(`${API_BASE}/api/files/proxy-download/${fileId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    console.log("Proxy response status:", response.status);
+    if (!response.ok) throw new Error("Download failed");
+
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
 
@@ -57,19 +61,12 @@ const triggerDownload = async (url, filename) => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-
     setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-  } catch {
-    // Fallback if blob fetch fails (e.g. CORS)
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || "download";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+
+  } catch (err) {
+    console.error("Download failed:", err.message);
   }
 };
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DownloadPage() {
@@ -169,20 +166,18 @@ export default function DownloadPage() {
   };
   // ── 3. Trigger the actual download ─────────────────────────────────────────
   const startDownload = async (resolvedDoc) => {
-    if (downloadTriggered.current) return; // ← guard
+    if (downloadTriggered.current) return;
     downloadTriggered.current = true;
   
     setStatus("downloading");
-    const fileUrl = resolvedDoc.url;
-    const filename = resolvedDoc.title || "download";
   
-    if (!fileUrl) {
+    if (!resolvedDoc.url) {
       setError("No file URL available.");
       setStatus("error");
       return;
     }
   
-    await triggerDownload(fileUrl, filename);
+    await triggerDownload(resolvedDoc.url, resolvedDoc.title, resolvedDoc._id); // ← pass _id
     setTimeout(() => setStatus("done"), 1500);
   };
 

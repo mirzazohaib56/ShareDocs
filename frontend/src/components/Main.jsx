@@ -374,7 +374,7 @@ export default function MainPage() {
                       <h6 className="card-title fw-bold" style={{ color: "#f0f0f0", fontSize: 14, marginBottom: 4 }}>
                         {doc.title || "Untitled"}
                       </h6>
-                      <p className="text-muted small mb-3" style={{ fontSize: 12, color: "#9ca3af !important", flex: 1 }}>
+                      <p className="text-secondary small mb-3" style={{ fontSize: 12, color: "#9ca3af !important", flex: 1 }}>
                         {doc.description || "No description"}
                       </p>
 
