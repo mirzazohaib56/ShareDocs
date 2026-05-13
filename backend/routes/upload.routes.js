@@ -5,8 +5,7 @@ import { Router } from "express";
 import jwt        from "jsonwebtoken";
 import File       from "../schema/file.schema.js";
 import Stripe from "stripe";
-import { extractText } from "../utils/extractText.js";
-import { generateTagsAndDescription } from "../utils/aiTagger.js";
+import { generateTags } from "../utils/aiTagger.js";
 
 const { v2: cloudinaryV2 } = cloudinary;
 const router = Router();
@@ -60,12 +59,19 @@ router.get("/", authenticate, async (req, res) => {
 
 router.post("/upload", authenticate, upload.single("file"), async (req, res) => {
   try {
+    const { title, description } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ message: "Title and description are required" });
+    }
+
     // 1. Upload to Cloudinary
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinaryV2.uploader.upload_stream(
         {
-          resource_type: getResourceType(req.file.mimetype), // ← fix here
+          resource_type: getResourceType(req.file.mimetype),
           folder: "uploads",
+          access_mode: "public",
           public_id: `${Date.now()}-${req.file.originalname.replace(/\s+/g, "_")}`,
         },
         (error, result) => (error ? reject(error) : resolve(result))
@@ -73,25 +79,19 @@ router.post("/upload", authenticate, upload.single("file"), async (req, res) => 
       stream.end(req.file.buffer);
     });
 
-    // 2. Extract text and generate AI tags
-    const text = await extractText(req.file.buffer, req.file.mimetype);
-    const { description, tags, title } = await generateTagsAndDescription(
-      text,
-      req.file.buffer,
-      req.file.mimetype,
-      req.file.originalname
-    );
+    // 2. Generate tags from title + description
+    const tags = await generateTags(title, description);
 
-    // 3. Save to MongoDB with AI-generated values
+    // 3. Save to MongoDB
     const fileEntry = await File.create({
       title,
-      description, // ← AI generated
-      tags,        // ← AI generated
-      url:         result.secure_url,
-      publicId:    result.public_id,
-      fileType:    req.file.mimetype,
-      size:        req.file.size,
-      uploadedBy:  req.user.id,
+      description,
+      tags,
+      url:        result.secure_url,
+      publicId:   result.public_id,
+      fileType:   req.file.mimetype,
+      size:       req.file.size,
+      uploadedBy: req.user.id,
     });
 
     res.status(201).json({
