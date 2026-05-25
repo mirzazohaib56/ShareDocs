@@ -5,10 +5,10 @@ import CategoryBar from "../components/CategoryBar";
 import { Upload, File, XCircle, Loader, CheckCircle, AlertCircle } from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const API_BASE        = import.meta.env.VITE_BACKEND_URL|| "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 const UPLOAD_ENDPOINT = `${API_BASE}/api/upload`;
-const FILES_ENDPOINT  = `${API_BASE}/api/files`; // GET all files from your File collection
-const MAX_FILES       = 3;
+const FILES_ENDPOINT = `${API_BASE}/api/files`; // GET all files from your File collection
+const MAX_FILES = 3;
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -56,44 +56,38 @@ const formatFileSize = (bytes) => {
 
 // ── Category Data ─────────────────────────────────────────────────────────────
 const categoryData = {
-  Academic: [
-    { title: "Foreign Language Studies", items: ["Chinese", "ESL"] },
-    { title: "Science & Mathematics",    items: ["Astronomy", "Biology"] },
-    { title: "Teaching Methods",         items: ["Child Education", "Philosophy"] },
+  Cybersecurity: [
+    { title: "Security Topics", items: ["Ethical Hacking", "Cybersecurity", "Hashing", "Risk", "Threats"] },
+    { title: "Concepts", items: ["Cryptography", "Information", "Security"] },
   ],
-  Professional: [
-    { title: "Business",    items: ["Marketing", "Finance", "HR"] },
-    { title: "IT & Software", items: ["Networking", "Data Science"] },
-    { title: "Engineering", items: ["Electrical", "Mechanical"] },
+  Education: [
+    { title: "Teaching", items: ["CS Education", "Teaching Methods", "EdTech", "Language Learning"] },
+    { title: "Research", items: ["Academia", "Psychology", "Parenting"] },
   ],
-  Culture: [
-    { title: "History",     items: ["World War II", "Ancient Civilizations"] },
-    { title: "Languages",   items: ["French", "Arabic"] },
-    { title: "Traditions",  items: ["Festivals", "Lifestyle"] },
+  ComputerScience: [
+    { title: "Software", items: ["Software", "Algorithms", "Distributed Systems", "Web Science"] },
+    { title: "Metrics & Quality", items: ["Metrics", "Engineering", "Networks"] },
   ],
-  Hobbies: [
-    { title: "Arts & Crafts", items: ["Painting", "DIY Crafts"] },
-    { title: "Sports",        items: ["Cricket", "Football"] },
-    { title: "Games",         items: ["Chess", "Puzzles"] },
+  Finance: [
+    { title: "Personal Finance", items: ["Budgeting", "Expenses", "Tracker", "Finance"] },
+    { title: "Professional", items: ["Grants", "Contracts", "Research"] },
   ],
-  PersonalGrowth: [
-    { title: "Motivation", items: ["Success Tips", "Time Management"] },
-    { title: "Health",     items: ["Workout", "Nutrition"] },
-    { title: "Lifestyle",  items: ["Self Discipline", "Habits"] },
+  Presentations: [
+    { title: "Templates", items: ["AI", "Analysis", "Messages"] },
+    { title: "Slide Decks", items: ["Presentation", "Template", "Deck"] },
   ],
   AllDocuments: [
-    { title: "Top Categories", items: ["Academic", "Professional", "Culture"] },
-    { title: "Popular Docs",   items: ["Notes", "Guides", "E-Books"] },
-    { title: "Uploads",        items: ["PDFs", "Docs", "Slides"] },
+    { title: "By Type", items: ["PDF", "DOCX", "XLSX", "PPTX"] },
+    { title: "Popular", items: ["Education", "Security", "Finance"] },
   ],
 };
 
 // ── Upload Popup ──────────────────────────────────────────────────────────────
 const STATUS_STYLE = {
-  idle:      { bg: "#fee2e2", iconColor: "#dc2626" },
+  idle: { bg: "#fee2e2", iconColor: "#dc2626" },
   uploading: { bg: "#fef9c3", iconColor: "#ca8a04" },
-  success:   { bg: "#dcfce7", iconColor: "#16a34a" },
-  error:     { bg: "#fee2e2", iconColor: "#dc2626" },
+  success: { bg: "#dcfce7", iconColor: "#16a34a" },
+  error: { bg: "#fee2e2", iconColor: "#dc2626" },
 };
 
 const uploadFileToBackend = async (file) => {
@@ -128,10 +122,10 @@ function DownloadPopup({ doc, onClose }) {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({
-            fileId:    doc._id,
+            fileId: doc._id,
             fileTitle: doc.title,
             successUrl: `${window.location.origin}/download/${doc._id}?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl:  window.location.href,
+            cancelUrl: window.location.href,
           }),
         }
       );
@@ -180,17 +174,20 @@ function DownloadPopup({ doc, onClose }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MainPage() {
   const navigate = useNavigate();
-  const [dbFiles, setDbFiles]                   = useState([]);
-  const [loading, setLoading]                   = useState(true);
-  const [searchText, setSearchText]             = useState("");
+  const [dbFiles, setDbFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
-  const [uploadPopupDoc, setUploadPopupDoc]     = useState(null); // the doc user clicked
+  const [uploadPopupDoc, setUploadPopupDoc] = useState(null); // the doc user clicked
 
-  const fetchFiles = async (search = "") => {
+  const fetchFiles = async (search = "", tag = "") => {
     setLoading(true);
     try {
-      const query = search ? `?search=${encodeURIComponent(search)}` : "";
+      let query = "";
+      if (search) query = `?search=${encodeURIComponent(search)}`;
+      else if (tag) query = `?search=${encodeURIComponent(tag)}`;
+
       const res = await fetch(`${API_BASE}/api/files${query}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
@@ -213,17 +210,13 @@ export default function MainPage() {
     fetchFiles(text.trim());
   };
 
-  const docsToShow = dbFiles.filter((doc) => {
-    if (!selectedCategory) return true;
-    if (!selectedSubcategory) return doc.category === selectedCategory;
-    return doc.subcategory === selectedSubcategory;
-  });
+  const docsToShow = dbFiles;
 
   const sectionTitle = searchText.trim()
     ? `Search results for "${searchText}"`
     : selectedSubcategory ? `📂 ${selectedSubcategory}`
-    : selectedCategory    ? `📁 ${selectedCategory}`
-    : "🔥 Popular Documents";
+      : selectedCategory ? `📁 ${selectedCategory}`
+        : "🔥 Popular Documents";
 
   // When all 3 uploads succeed → go to download page with the target doc
   const handleAllUploaded = async () => {
@@ -236,10 +229,10 @@ export default function MainPage() {
         },
         body: JSON.stringify({ fileId: uploadPopupDoc._id }),
       });
-  
+
       const data = await res.json();
       if (!data.downloadToken) throw new Error("No token received");
-  
+
       // Token goes in state only — not URL, not localStorage
       navigate(`/download/${uploadPopupDoc._id}`, {
         state: { doc: uploadPopupDoc, downloadToken: data.downloadToken },
@@ -258,7 +251,7 @@ export default function MainPage() {
           setSelectedCategory(cat);
           setSelectedSubcategory(item);
           setSearchText("");
-          fetchFiles();
+          fetchFiles("", item);
         }}
       />
 
@@ -281,9 +274,9 @@ export default function MainPage() {
               <div className="row g-3">
                 {[
                   { icon: "📄", count: "10K+", label: "Documents" },
-                  { icon: "👥", count: "5K+",  label: "Users" },
-                  { icon: "📂", count: "50+",  label: "Categories" },
-                  { icon: "⭐", count: "4.8",  label: "Rating" },
+                  { icon: "👥", count: "5K+", label: "Users" },
+                  { icon: "📂", count: "50+", label: "Categories" },
+                  { icon: "⭐", count: "4.8", label: "Rating" },
                 ].map(stat => (
                   <div key={stat.label} className="col-6">
                     <div className="rounded-3 p-3 text-center" style={styles.statCard}>
@@ -305,7 +298,7 @@ export default function MainPage() {
           <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <h2 className="text-white fw-bold mb-0">{sectionTitle}</h2>
             {(selectedCategory || selectedSubcategory) && (
-              <button className="btn btn-outline-light btn-sm" onClick={() => { setSelectedCategory(""); setSelectedSubcategory(""); }}>
+              <button className="btn btn-outline-light btn-sm" onClick={() => { setSelectedCategory(""); setSelectedSubcategory(""); fetchFiles(); }}>
                 ✕ Clear Filter
               </button>
             )}
@@ -362,10 +355,10 @@ export default function MainPage() {
                       }}>
                         {doc.fileType?.startsWith("image/") ? "🖼️"
                           : doc.fileType === "application/pdf" ? "📄"
-                          : doc.fileType?.includes("word") ? "📝"
-                          : doc.fileType?.includes("sheet") || doc.fileType?.includes("excel") ? "📊"
-                          : doc.fileType?.includes("presentation") || doc.fileType?.includes("powerpoint") ? "📋"
-                          : "📁"}
+                            : doc.fileType?.includes("word") ? "📝"
+                              : doc.fileType?.includes("sheet") || doc.fileType?.includes("excel") ? "📊"
+                                : doc.fileType?.includes("presentation") || doc.fileType?.includes("powerpoint") ? "📋"
+                                  : "📁"}
                       </div>
 
                       <h6 className="card-title fw-bold" style={{ color: "#f0f0f0", fontSize: 14, marginBottom: 4 }}>
@@ -420,10 +413,17 @@ export default function MainPage() {
             <div className="col-md-4">
               <h6 className="text-white">Popular Categories</h6>
               <ul className="list-unstyled">
-                {["Academic", "Professional", "Culture", "Hobbies"].map(c => (
+                {["Cybersecurity", "Education", "Finance", "Presentations"].map(c => (
                   <li key={c}>
-                    <span className="text-white-50 small" style={{ cursor: "pointer" }}
-                      onClick={() => { setSelectedCategory(c); setSelectedSubcategory(""); }}>
+                    <span
+                      className="text-white-50 small"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setSelectedCategory(c);
+                        setSelectedSubcategory("");
+                        fetchFiles("", c);
+                      }}
+                    >
                       {c}
                     </span>
                   </li>
@@ -438,11 +438,11 @@ export default function MainPage() {
 
       {/* Upload Popup */}
       {uploadPopupDoc && (
-  <DownloadPopup
-    doc={uploadPopupDoc}
-    onClose={() => setUploadPopupDoc(null)}
-  />
-)}
+        <DownloadPopup
+          doc={uploadPopupDoc}
+          onClose={() => setUploadPopupDoc(null)}
+        />
+      )}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
