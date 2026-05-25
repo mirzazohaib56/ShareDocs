@@ -381,7 +381,7 @@ export default function PDFUpload() {
           <p style={{ fontSize: "15px", color: "#718096", margin: 0 }}>
             {targetDoc
               ? <>Uploading to unlock: <strong>{targetDoc.title}</strong></>
-              : "Select 3 files, add details, then upload"
+              : "Select 3 files, add details, then upload (Max Size 10MB)"
             }
           </p>
         </div>

@@ -183,44 +183,41 @@ export default function MainPage() {
   const [dbFiles, setDbFiles]                   = useState([]);
   const [loading, setLoading]                   = useState(true);
   const [searchText, setSearchText]             = useState("");
-  const [searchResults, setSearchResults]       = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [uploadPopupDoc, setUploadPopupDoc]     = useState(null); // the doc user clicked
 
+  const fetchFiles = async (search = "") => {
+    setLoading(true);
+    try {
+      const query = search ? `?search=${encodeURIComponent(search)}` : "";
+      const res = await fetch(`${API_BASE}/api/files${query}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const data = await res.json();
+      setDbFiles(Array.isArray(data) ? data : data.files || []);
+    } catch (err) {
+      console.error("Failed to fetch files:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch files from DB
   useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const res = await fetch(FILES_ENDPOINT, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        const data = await res.json();
-        // expects array of file objects from your File schema
-        setDbFiles(Array.isArray(data) ? data : data.files || []);
-      } catch (err) {
-        console.error("Failed to fetch files:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchFiles();
   }, []);
 
   const handleSearch = (text) => {
     setSearchText(text);
-    const trimmed = text.trim().toLowerCase();
-    if (!trimmed) { setSearchResults([]); return; }
-    setSearchResults(dbFiles.filter(d => d.title?.toLowerCase().includes(trimmed)));
+    fetchFiles(text.trim());
   };
 
-  const filteredDocs = dbFiles.filter((doc) => {
+  const docsToShow = dbFiles.filter((doc) => {
     if (!selectedCategory) return true;
     if (!selectedSubcategory) return doc.category === selectedCategory;
     return doc.subcategory === selectedSubcategory;
   });
-
-  const docsToShow = searchText.trim() ? searchResults : filteredDocs;
 
   const sectionTitle = searchText.trim()
     ? `Search results for "${searchText}"`
@@ -261,7 +258,7 @@ export default function MainPage() {
           setSelectedCategory(cat);
           setSelectedSubcategory(item);
           setSearchText("");
-          setSearchResults([]);
+          fetchFiles();
         }}
       />
 

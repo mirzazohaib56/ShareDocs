@@ -53,8 +53,26 @@ const upload = multer({
 });
 
 router.get("/", authenticate, async (req, res) => {
-  const files = await File.find().sort({ createdAt: -1 });
-  res.json(files);
+  try {
+    const { search } = req.query;
+
+    let query = {};
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      query = {
+        $or: [
+          { title: regex },
+          { description: regex },
+          { tags: regex },
+        ],
+      };
+    }
+
+    const files = await File.find(query).sort({ createdAt: -1 });
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.post("/upload", authenticate, upload.single("file"), async (req, res) => {
