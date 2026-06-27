@@ -171,6 +171,43 @@ router.get("/proxy-download/:fileId", authenticate, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+router.get("/fix-pdfs", async (req, res) => {
+  try {
+    const files = await File.find({ fileType: "application/pdf" });
+    const results = [];
+    for (const file of files) {
+      try {
+        await cloudinaryV2.api.update(file.publicId, {
+          resource_type: "raw",
+          access_mode: "public",
+        });
+        results.push({ title: file.title, status: "fixed" });
+      } catch (err) {
+        results.push({ title: file.title, error: err.message });
+      }
+    }
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/check-pdf", async (req, res) => {
+  try {
+    const result = await cloudinaryV2.api.resource(
+      "uploads/1779306987841-Teaching_Accessibility_in_Computer_Scien.pdf",
+      { resource_type: "raw" }
+    );
+    res.json({
+      access_mode: result.access_mode,
+      type: result.type,
+      secure_url: result.secure_url,
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
 // ── POST /api/files/download-token ────────────────────────────────────────────
 // Called after 3 files uploaded successfully → issues a 5-min download token
 router.post("/download-token", authenticate, async (req, res) => {
