@@ -398,22 +398,14 @@ export default function MainPage() {
       <footer style={styles.footer}>
         <div className="container">
           <div className="row py-4 gy-3">
-            <div className="col-md-4">
+            <div className="col-md-6">
               <h5 className="text-white fw-bold">SHAREDOCS</h5>
               <p className="text-white-50 small">Your go-to platform for sharing and discovering knowledge.</p>
             </div>
-            <div className="col-md-4">
-              <h6 className="text-white">Quick Links</h6>
-              <ul className="list-unstyled">
-                {["Home", "Upload", "Premium", "About"].map(link => (
-                  <li key={link}><span className="text-white-50 small" style={{ cursor: "pointer" }}>{link}</span></li>
-                ))}
-              </ul>
-            </div>
-            <div className="col-md-4">
+            <div className="col-md-6">
               <h6 className="text-white">Popular Categories</h6>
               <ul className="list-unstyled">
-                {["Cybersecurity", "Education", "Finance", "Presentations"].map(c => (
+                {["Cybersecurity", "Education", "Finance", "Software"].map(c => (
                   <li key={c}>
                     <span
                       className="text-white-50 small"
