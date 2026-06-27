@@ -151,13 +151,8 @@ router.get("/proxy-download/:fileId", authenticate, async (req, res) => {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: "File not found" });
 
-    console.log("Fetching URL:", file.url);
-    console.log("publicId:", file.publicId);
-    console.log("fileType:", file.fileType);
-
     // Just fetch the stored URL directly — no signing needed if public
     const response = await fetch(file.url);
-    console.log("Response status:", response.status);
     
     if (!response.ok) throw new Error(`Failed: ${response.status}`);
 
@@ -235,13 +230,6 @@ router.get("/download-token/verify", authenticate, async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log("decoded.fileId:", decoded.fileId);
-    console.log("query fileId:", fileId);
-    console.log("decoded.userId:", decoded.userId);
-    console.log("req.user.id:", req.user.id);
-    console.log("fileId match:", decoded.fileId === fileId);
-    console.log("userId match:", decoded.userId === req.user.id);
 
     if (decoded.type !== "download")    return res.json({ valid: false, reason: "invalid_type" });
     if (decoded.fileId !== fileId)      return res.json({ valid: false, reason: "file_mismatch" });
