@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Signup from "./components/Signup";
 import Login from "./components/Login";
 import Upload from "./components/Upload";
-import Premium from "./components/Premium";
 import Main from "./components/Main";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DownloadPage from "./components/DownloadPage";
@@ -26,14 +25,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Upload />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/premium"
-          element={
-            <ProtectedRoute>
-              <Premium />
             </ProtectedRoute>
           }
         />
